@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>เกมล่องเรือฝ่าดงฉลาม</title>
+    <style>
+        body {
+            font-family: 'Sarabun', Tahoma, sans-serif;
+            background-color: #e0f7fa;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+        #game-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #0277bd; }
+        
+        /* Scene CSS */
+        #sea {
+            position: relative;
+            height: 150px;
+            background: linear-gradient(to bottom, #4fc3f7, #0288d1);
+            border-radius: 10px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            border: 3px solid #01579b;
+        }
+        #boat {
+            position: absolute;
+            font-size: 50px;
+            bottom: 20px;
+            left: 5%; /* Start position */
+            transition: left 0.5s ease;
+            z-index: 2;
+        }
+        #island {
+            position: absolute;
+            font-size: 60px;
+            bottom: 20px;
+            right: 2%;
+            z-index: 1;
+        }
+        #shark {
+            position: absolute;
+            font-size: 50px;
+            bottom: -50px; /* Hidden initially */
+            transition: all 0.3s ease;
+            z-index: 3;
+        }
+        .hp-bar {
+            font-size: 24px;
+            margin-bottom: 15px;
+        }
+
+        /* Quiz CSS */
+        #question {
+            font-size: 22px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #333;
+            min-height: 60px;
+        }
+        .btn-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        .btn {
+            background-color: #fff;
+            border: 2px solid #0277bd;
+            color: #0277bd;
+            padding: 10px 20px;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn:hover {
+            background-color: #0277bd;
+            color: white;
+        }
+        .btn:disabled {
+            background-color: #ccc;
+            border-color: #999;
+            color: #666;
+            cursor: not-allowed;
+        }
+        #message {
+            margin-top: 20px;
+            font-size: 20px;
+            font-weight: bold;
+            height: 30px;
+        }
+        .correct { color: #2e7d32; }
+        .wrong { color: #c62828; }
+        
+        #restart-btn {
+            display: none;
+            background-color: #ff9800;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <h1>⛵ ล่องเรือฝ่าดงฉลาม! 🦈</h1>
+    
+    <div class="hp-bar" id="hp-display">พลังเรือ: ❤️❤️❤️</div>
+
+    <div id="sea">
+        <div id="boat">⛵</div>
+        <div id="shark">🦈</div>
+        <div id="island">🏝️</div>
+    </div>
+
+    <div id="quiz-area">
+        <div id="question">กำลังโหลดคำถาม...</div>
+        <div class="btn-container" id="options">
+            <!-- Buttons will be generated here -->
+        </div>
+    </div>
+
+    <div id="message"></div>
+    <button id="restart-btn" onclick="startGame()">เริ่มเล่นใหม่</button>
+</div>
+
+<script>
+    // ข้อมูลคำถามทั้งหมดอิงจากบทเรียน
+    const questions = [
+        { q: '1. จากบทเรียน ถ้าเราไปโรงเรียนด้วย "รถโรงเรียน" เราจะพูดว่าอย่างไร?', options: ['A) on school bus', 'B) by school bus', 'C) in school bus'], answer: 1 },
+        { q: '2. คำศัพท์ใดแปลว่า "เดิน (ไปด้วยเท้า)"?', options: ['A) on foot', 'B) by foot', 'C) by walk'], answer: 0 },
+        { q: '3. ตามตารางเรียน ถ้าเราทำบางสิ่งบางอย่างทุกวันจันทร์ถึงวันศุกร์ (5 วัน) จะตรงกับคำว่าอะไร?', options: ['A) sometimes', 'B) often', 'C) always'], answer: 2 },
+        { q: '4. ถ้าเรานั่งรถแท็กซี่ไปโรงเรียน ภาษาอังกฤษคือข้อใด?', options: ['A) by taxi', 'B) on taxi', 'C) with taxi'], answer: 0 },
+        { q: '5. คำว่า "never" ในตารางเรียน หมายถึงทำกิจกรรมนั้นกี่วัน?', options: ['A) 0 วัน (ไม่เคยเลย)', 'B) 3 วัน', 'C) 5 วัน'], answer: 0 },
+        { q: '6. ประโยคคำถาม "How do they get to school?" หมายความว่าอย่างไร?', options: ['A) พวกเขาไปโรงเรียนเมื่อไหร่?', 'B) พวกเขาไปโรงเรียนอย่างไร?', 'C) พวกเขาไปโรงเรียนทำไม?'], answer: 1 },
+        { q: '7. เติมคำในช่องว่าง: I always get to school ___ bicycle.', options: ['A) in', 'B) on', 'C) by'], answer: 2 },
+        { q: '8. ถ้าเราทำกิจกรรม 4 วันใน 1 สัปดาห์ (จันทร์, พุธ, พฤหัสฯ, ศุกร์) จะตรงกับคำว่าอะไร?', options: ['A) often', 'B) sometimes', 'C) never'], answer: 0 },
+        { q: '9. เติมคำในช่องว่างให้ถูกต้อง: I always get to school ___ foot.', options: ['A) by', 'B) on', 'C) at'], answer: 1 },
+        { q: '10. ถ้าเราทำกิจกรรมแค่บางครั้ง (3 วัน: จันทร์, พุธ, ศุกร์) ตรงกับคำว่าอะไร?', options: ['A) always', 'B) sometimes', 'C) often'], answer: 1 },
+        { q: '11. ข้อใดคือประโยคที่ถูกต้องตามโครงสร้างในบทเรียน?', options: ['A) I get to school always by train.', 'B) Always I get to school by train.', 'C) I always get to school by train.'], answer: 2 },
+        { q: '12. ถ้าอยากบอกเพื่อนว่า "ฉันเดินไปโรงเรียนเป็นประจำทุกวัน" ต้องพูดว่าอย่างไร?', options: ['A) I always get to school on foot.', 'B) I often get to school by taxi.', 'C) I never get to school on foot.'], answer: 0 }
+    ];
+
+    let currentQIndex = 0;
+    let boatPosition = 5; // เริ่มต้นที่ 5%
+    let hp = 3;
+    let isGameOver = false;
+
+    const questionEl = document.getElementById('question');
+    const optionsEl = document.getElementById('options');
+    const messageEl = document.getElementById('message');
+    const boatEl = document.getElementById('boat');
+    const sharkEl = document.getElementById('shark');
+    const hpDisplay = document.getElementById('hp-display');
+    const restartBtn = document.getElementById('restart-btn');
+
+    function startGame() {
+        currentQIndex = 0;
+        boatPosition = 5;
+        hp = 3;
+        isGameOver = false;
+        
+        boatEl.style.left = boatPosition + '%';
+        sharkEl.style.bottom = '-50px'; // ซ่อนฉลาม
+        updateHP();
+        messageEl.innerText = '';
+        restartBtn.style.display = 'none';
+        
+        loadQuestion();
+    }
+
+    function updateHP() {
+        let hearts = '';
+        for(let i = 0; i < hp; i++) hearts += '❤️';
+        hpDisplay.innerText = 'พลังเรือ: ' + (hearts || 'พังแล้ว! 💀');
+    }
+
+    function loadQuestion() {
+        if (isGameOver) return;
+
+        // เช็คว่าชนะหรือยัง
+        if (currentQIndex >= questions.length) {
+            winGame();
+            return;
+        }
+
+        const currentQ = questions[currentQIndex];
+        questionEl.innerText = currentQ.q;
+        optionsEl.innerHTML = '';
+
+        currentQ.options.forEach((opt, index) => {
+            const btn = document.createElement('button');
+            btn.className = 'btn';
+            btn.innerText = opt;
+            btn.onclick = () => checkAnswer(index);
+            optionsEl.appendChild(btn);
+        });
+        
+        messageEl.innerText = '';
+    }
+
+    function disableButtons() {
+        const btns = document.querySelectorAll('.btn');
+        btns.forEach(btn => btn.disabled = true);
+    }
+
+    function checkAnswer(selectedIndex) {
+        disableButtons();
+        const currentQ = questions[currentQIndex];
+
+        if (selectedIndex === currentQ.answer) {
+            // ตอบถูก: เรือเดินหน้า
+            messageEl.innerHTML = '<span class="correct">ถูกต้อง! ลมพัดเรือไปข้างหน้า 🌊</span>';
+            boatPosition += 7; // เคลื่อนที่ไป 7%
+            boatEl.style.left = boatPosition + '%';
+            
+            setTimeout(() => {
+                currentQIndex++;
+                loadQuestion();
+            }, 1500);
+
+        } else {
+            // ตอบผิด: ฉลามโผล่มากัด
+            messageEl.innerHTML = '<span class="wrong">ผิด! ฉลามงับเรือ! 🦈💥</span>';
+            hp--;
+            updateHP();
+            
+            // อนิเมชั่นฉลามโผล่มางับ
+            sharkEl.style.left = (boatPosition + 2) + '%';
+            sharkEl.style.bottom = '10px';
+            
+            setTimeout(() => {
+                sharkEl.style.bottom = '-50px'; // ฉลามมุดน้ำกลับไป
+                
+                if (hp <= 0) {
+                    loseGame();
+                } else {
+                    currentQIndex++;
+                    loadQuestion();
+                }
+            }, 1500);
+        }
+    }
+
+    function winGame() {
+        isGameOver = true;
+        questionEl.innerText = "🎉 ยินดีด้วย! คุณพาเรือถึงฝั่งอย่างปลอดภัย! 🏝️";
+        optionsEl.innerHTML = '';
+        messageEl.innerText = '';
+        restartBtn.style.display = 'inline-block';
+        boatEl.style.left = '85%'; // เรือจอดที่เกาะ
+    }
+
+    function loseGame() {
+        isGameOver = true;
+        questionEl.innerText = "💀 เกมโอเวอร์! เรือของคุณถูกฉลามพังซะแล้ว...";
+        optionsEl.innerHTML = '';
+        messageEl.innerText = '';
+        restartBtn.style.display = 'inline-block';
+        boatEl.style.transform = "rotate(20deg) translateY(20px)"; // เรือจม
+    }
+
+    // เริ่มเกมครั้งแรก
+    startGame();
+</script>
+
+</body>
+</html>
